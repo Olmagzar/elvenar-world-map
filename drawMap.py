@@ -3,7 +3,6 @@
 import math
 from PIL import Image, ImageDraw, ImageFont
 
-drawAura = True
 guildes = [
         { "name": "pti Ros'Ours", "members": [
                 { "name": "JMT", "x": -113, "y": -68, "scout": 49459 },
@@ -46,6 +45,8 @@ h = 4096
 w = 4096
 L = 7
 
+prefix_path = '/tmp/'
+
 space = (0, 0, 0)
 stellar_color = [
         (0xff, 0x45, 0x00),
@@ -81,8 +82,8 @@ def toHexCoord(row, col):
     hex_row = row - math.ceil(col / 2)
     return (hex_row, hex_col)
 
-def getCenter(x, y):
-    (row, col) = toHexCoord(row = y, col = x)
+def getCenter(player):
+    (row, col) = toHexCoord(row = player["y"], col = player["x"])
     return getXY(row, col, L)
 
 def getCategory(city_r):
@@ -143,6 +144,16 @@ def getRadius(points):
         n += 1
     return (n - 1)
 
+def dist(p1, p2):
+    (x1, y1) = p1
+    (x2, y2) = p2
+    return ((x2 - x1) ** 2 + (y2 - y1) ** 2) ** (1/2)
+
+def tileDist(player_1, player_2):
+    (row_1, col_1) = toHexCoord(col = player_1["x"], row = player_1["y"])
+    (row_2, col_2) = toHexCoord(col = player_2["x"], row = player_2["y"])
+    return int((abs(col_2 - col_1) + abs(row_2 - row_1) + abs(col_2 + row_2 - col_1 - row_1)) / 2)
+
 def main():
     image = Image.new('RGB', (w, h), space)
     draw = ImageDraw.Draw(image)
@@ -150,28 +161,64 @@ def main():
     hexagon_generator = HexagonGenerator(L)
     for conf in guildes:
         # Draw the current fellowship with aura of each members and save it
+        draw.line((L, h/2, w - L, h/2), (92, 92, 92), int(L/2))
+        draw.line((w/2, L, w/2, h - L), (92, 92, 92), int(L/2))
         for player in conf["members"]:
             addCity(player, draw, hexagon_generator, draw_aura = True)
-        image.save(conf["name"] + '_aura.png')
+        image.save(prefix_path + conf["name"] + '_aura.png')
 
         # Clear
         draw.rectangle((0, 0, w, h), space)
 
         # Draw the current fellowship without aura but add name of members
+        # and minimal spanning tree using prim algorithm
+        confSize = len(conf["members"])
+        distMatrix = []
+        resultTree = []
+        for player in conf["members"]:
+#            localDist = [ dist(getCenter(player), getCenter(neighbour))
+            localDist = [ tileDist(player, neighbour)
+                          for neighbour in conf["members"] ]
+            distMatrix.append(localDist)
+        selectedVertices = [ False for i in range(confSize) ]
+        posInf = float('inf')
+        while False in selectedVertices:
+            minima = posInf
+            start = end = 0
+            for i in range(confSize):
+                if selectedVertices[i]:
+                    for j in range(confSize):
+                        if (not selectedVertices[j] and distMatrix[i][j] > 0):
+                            if distMatrix[i][j] < minima:
+                                minima = distMatrix[i][j]
+                                start, end = i, j
+
+            selectedVertices[end] = True
+            if minima != posInf:
+                p1 = getCenter(conf["members"][start])
+                p2 = getCenter(conf["members"][end])
+                resultTree.append(p1 + p2)
+
+        for line in resultTree:
+            draw.line(line, (128, 128, 128), int(L/2))
+
+
         for player in conf["members"]:
             addCity(player, draw, hexagon_generator, draw_aura = False)
         for player in conf["members"]:
-            (ox, oy) = getCenter(player["x"], player["y"])
+            (ox, oy) = getCenter(player)
             txt_sz = draw.textsize(player["name"], font)
             draw.text((ox - txt_sz[0]/2, oy - 5 * L - txt_sz[1]),
                       player["name"],
                       getColor(getRadius(player["scout"])),
                       font)
-        image.save(conf["name"] + '_named.png')
+        image.save(prefix_path + conf["name"] + '_named.png')
 
         # Clear
         draw.rectangle((0, 0, w, h), space)
 
+    draw.line((L, h/2, w - L, h/2), (92, 92, 92), int(L/2))
+    draw.line((w/2, L, w/2, h - L), (92, 92, 92), int(L/2))
     for conf in guildes:
         # Draw overlap of all fellowship to see trading opportunities
         if conf["name"] == guildes[0]["name"]:
@@ -179,8 +226,8 @@ def main():
         else:
             use_color = (192, 127, 0)
         for player in conf["members"]:
-            addCity(player, draw, hexagon_generator, draw_aura = drawAura, use_color = use_color)
-        image.save(guildes[0]["name"] + '_overlap.png')
+            addCity(player, draw, hexagon_generator, draw_aura = True, use_color = use_color)
+        image.save(prefix_path + guildes[0]["name"] + '_overlap.png')
 
     #draw.polygon(list(hexagon_generator(0, 0)), 'green')
 
