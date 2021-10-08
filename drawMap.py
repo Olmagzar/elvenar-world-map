@@ -190,6 +190,8 @@ def main():
         # Clear
         draw.rectangle((0, 0, w, h), space)
 
+    if len(guildes) < 2:
+        exit(0)
     draw.line((L, h/2, w - L, h/2), (92, 92, 92), int(L/2))
     draw.line((w/2, L, w/2, h - L), (92, 92, 92), int(L/2))
     for conf in guildes:

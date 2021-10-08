@@ -29,3 +29,25 @@ from the 'POST' response when opening the world map with the requestMethod
 the responseData containing an array of 'provinces' : 6 regular one and 3 cities
 one of which is yours. Look for the name to verify, and get the 'r' and 'q'
 values associated with.
+
+After adding the fellowship file, import it in the config.py file and add it in
+the array.
+For instance:
+
+from fellowships import My_Awesome_Fellowship, Another_Cool_Fellowship
+
+guildes = [
+    My_Awesome_Fellowship.conf,
+    Another_Cool_Fellowship.conf
+]
+
+More than one fellowship in the array will result with:
+ - a map with members estimated exploration area per fellowship (_aura.png) ;
+ - a map with members linked by a minimal covering tree generated with Prim's
+   algorithm, using tiles as distance unit (same as province exploration
+   distances or fight troups moves) per fellowship (_named.png) ;
+ - a map with the first fellowship in blue and any other fellowship in orange,
+   named after the first fellowship and the second one (_overlap_ .png)
+
+The last map (overlap) aims to see a bit of trading opportunities between
+fellowships for non-sentient goods.
