@@ -1,0 +1,28 @@
+conf = {
+    "name": "deux couronnes", "members": [
+        { "name":"tadou", "x": 20, "y": 75, "scout": 58194 },
+        { "name":"Bluebell", "x": -105, "y": 55, "scout": 43578 },
+        { "name":"Melusine", "x": 69, "y": -62, "scout": 41866 },
+        { "name":"Ganghar", "x": -114, "y": 90, "scout": 33360 },
+        { "name":"Florizette", "x": 74, "y": 33, "scout": 37516 },
+        { "name":"Ka", "x": -6, "y": 147, "scout": 26828 },
+        { "name":"Moqueur", "x": -130, "y": 30, "scout": 33930 },
+        { "name":"miniphi", "x": 89, "y": -83, "scout": 28298 },
+        { "name":"timotee", "x": 151, "y": -65, "scout": 35250 },
+        { "name":"vince", "x": -139, "y": -71, "scout": 49160 },
+        { "name":"daveHawai", "x": 123, "y": -89, "scout": 48151 },
+        { "name":"Boree", "x": 94, "y": 75, "scout": 32236 },
+        { "name":"maxiphi", "x": -73, "y": 79, "scout": 24558 },
+        { "name":"Nibel", "x": 137, "y": -8, "scout": 20752 },
+        { "name":"felindra", "x": -16, "y": 51, "scout": 19736 },
+        { "name":"Abiwe", "x": 40, "y": -33, "scout": 20664 },
+        { "name": "Jjidem", "x": 88, "y": -78, "scout": 18256 },
+        { "name":"Seleme", "x": 46, "y": -114, "scout": 18288 },
+        { "name":"Sylpheris", "x": -97, "y": 79, "scout": 13270 },
+        { "name":"Wei Shilong", "x": -88, "y": -57, "scout": 8469 },
+        { "name":"cbkhayman", "x": 75, "y": -80, "scout": 6903 },
+        { "name":"lilour", "x": -78, "y": 72, "scout": 6288 },
+        { "name":"ellebasi", "x": -6, "y": 150, "scout": 5160 },
+        { "name":"Troll", "x": -11, "y": 148, "scout": 6468 },
+    ]
+}
