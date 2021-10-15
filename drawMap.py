@@ -6,8 +6,8 @@ from PIL import Image, ImageDraw, ImageFont
 from config import guildes
 
 #conf = guildes[0]["members"]
-h = 4096
-w = 4096
+h = 5500
+w = 5500
 L = 7
 
 prefix_path = './maps/'
@@ -44,7 +44,7 @@ def getXY(hex_row, hex_col, hex_L):
 
 def toHexCoord(row, col):
     hex_col = col
-    hex_row = row - math.ceil(col / 2)
+    hex_row = row - math.floor(col / 2)
     return (hex_row, hex_col)
 
 def getCenter(player):
@@ -65,7 +65,7 @@ def getColor(city_r):
 
 def addCity(player, draw, hexagon_generator, draw_aura = True, use_color = None):
     (offset_y, offset_x) = toHexCoord(col = player["x"], row = player["y"])
-    radius = getRadius(player["scout"])
+    radius = getRadius(player["encounter"])
     rad_aura = radius
     if (not draw_aura):
         radius = 1
@@ -183,7 +183,7 @@ def main():
             txt_sz = draw.textsize(player["name"], font)
             draw.text((ox - txt_sz[0]/2, oy - 5 * L - txt_sz[1]),
                       player["name"],
-                      getColor(getRadius(player["scout"])),
+                      getColor(getRadius(player["encounter"])),
                       font)
         image.save(prefix_path + conf["name"] + '_named.png')
 
