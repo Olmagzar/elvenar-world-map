@@ -45,7 +45,7 @@ class GameGeom():
 
     def getCenterPx(self, city):
         (row, col) = self.gameToGeomCoord(row = city["y"], col = city["x"])
-        return self.__hexCoordToXYpx(row, col)
+        return self.__geomCoordToXYpx(row, col)
 
     def tile(self, row, col):
         (ox, oy) = self.__geomCoordToXYpx(row, col)
@@ -115,15 +115,18 @@ class Map():
     def clear(self):
         self.__draw((0, 0, self.__width, self.__height), self.__color_set.background)
 
-    def addCity(self, player, color_idx, draw_aura = True):
-        if (not draw_aura):
-            radius = 0
-        else:
+    def addCity(self, player, draw_aura = True):
+        if draw_aura == 'Low':
+            radius = 1
+        elif draw_aura == True:
             radius = getRadius(player["encounter"])
+        else:
+            radius = 0
         radius += 1
 
         for tile in self.__geom.range(player, radius):
             m_r = tile['m_r'] - 1
+            color_idx = player['color_idx']
             color = self.__color_set.palette[color_idx]
             color = (color[0] + 10 * m_r,
                      color[1] + 10 * m_r,
@@ -168,18 +171,43 @@ class Map():
         for line in self.__prim(cities):
             self.__draw.line(line, self.__color_set.links, int(self.__edge_length/2))
 
-    def addNames(self, cities, color_idx):
+    def addNames(self, cities):
         for city in cities:
+            color_idx = city['color_idx']
+            color = self.__color_set.palette[color_idx]
             (ox, oy) = self.__geom.getCenterPx(city)
             txt_sz = self.__draw.textsize(city['name'], self.__font)
             self.__draw.text((ox - txt_sz[0]/2, oy - 5 * self.__edge_length - txt_sz[1]),
-                             city["name"],
-                             color_idx,
-                             self.__font)
+                             city["name"], color, self.__font)
 
     # TODO: Add legend
 
-def main(fn = config.fn, drawAll = True, drawActives = True):
+def createGuildMaps(guild):
+    color_set = config.StellarSet()
+
+    # 1) Draw the current fellowship with aura of each members and save it
+    guild_map = Map(config.w, config.h, config.L, color_set, guild['name'])
+    guild_map.putAxis()
+    for player in guild['members']:
+        color_idx = color_set.getColorIdx(getRadius(player['encounter']))
+        player['color_idx'] = color_idx
+        guild_map.addCity(player, draw_aura = True)
+    guild_map.save(config.prefix_path + 'fellowship-aura/')
+    del guild_map
+
+    # 2) Draw the current fellowship without aura but add name of members
+    #    and minimal spanning tree using prim algorithm
+    guild_map = Map(config.w, config.h, config.L, color_set, guild['name'])
+    guild_map.addLinks(guild['members'])
+    for player in guild['members']:
+        color_idx = color_set.getColorIdx(getRadius(player['encounter']))
+        player['color_idx'] = color_idx
+        guild_map.addCity(player, draw_aura = 'Low')
+    guild_map.addNames(guild['members'])
+    guild_map.save(config.prefix_path + 'fellowship-named/')
+
+def main(fn = config.fn, draw_all = True, draw_actives = True, draw_guilds = False,
+         guild_name = None, player_guild = None):
     fd = os.open(fn, os.O_RDONLY)
     sz = os.path.getsize(fn)
     buf = os.read(fd, sz)
@@ -189,40 +217,64 @@ def main(fn = config.fn, drawAll = True, drawActives = True):
     cities = [ data[k] for k in data ]
     name = os.path.splitext(os.path.basename(fn))[0]
 
-    if drawAll == True:
+    if draw_all == True:
         color_set = config.StellarSet()
         stellar_map = Map(config.w, config.h, config.L, color_set, 'all-' + name)
         stellar_map.putAxis()
         for player in cities:
             color_idx = color_set.getColorIdx(getRadius(player['encounter']))
-            stellar_map.addCity(player, color_idx, draw_aura = False)
+            player['color_idx'] = color_idx
+            stellar_map.addCity(player, draw_aura = False)
         stellar_map.save(config.prefix_path)
 
-    if drawActives == True:
+    if draw_actives == True:
         color_set = config.ForestSet()
         forest_map = Map(config.w, config.h, config.L, color_set, 'active-' + name)
         forest_map.putAxis()
         for player in cities:
             color_idx = color_set.getColorIdx(player['active_period'])
-            forest_map.addCity(player, color_idx, draw_aura = False)
+            player['color_idx'] = color_idx
+            forest_map.addCity(player, draw_aura = False)
         forest_map.save(config.prefix_path)
 
-        # 1) Draw the current fellowship with aura of each members and save it
-        # 2) Draw the current fellowship without aura but add name of members
-        #    and minimal spanning tree using prim algorithm
+    guilds = {}
+    for p in cities:
+        if 'guild_id' in p and p['guild_id'] not in guilds:
+            guilds[p['guild_id']] = { 'name': p['guild_name'], 'members': [p]}
+        elif 'guild_id' in p:
+            guilds[p['guild_id']]['members'].append(p)
+
+    if draw_guilds == True:
+        for guild_id in guilds:
+            guild = guilds[guild_id]
+            createGuildMaps(guild)
+
+    elif guild_name != None:
+        guild = [ guilds[guild_id] for guild_id in guilds if guilds[guild_id]['name'] == guild_name ]
+        if len(guild) > 0:
+            if len(guild) > 1:
+                print("Found {} guilds with the name '{}'!".format(len(guild), guild_name))
+            guild = guild[0]
+            createGuildMaps(guild)
+        else:
+            print("No guild named '{}' found.".format(guild_name))
+
+    elif player_guild != None:
+        guild_id = [ p['guild_id'] for p in cities if 'guild_id' in p and p['name'] == player_guild ]
+        if len(guild_id) > 0:
+            if len(guild_id) > 1:
+                print("Player '{}' is in more than one guild!".format(player_guild))
+            guild_id = guild_id[0]
+            guild = guilds[guild_id]
+            createGuildMaps(guild)
+        else:
+            print("Player '{}' is not in any guild.".format(player_guild))
+
+
         # 3) Draw overlap of all fellowship to see trading opportunities
 
 #    if len(guildes) < 2:
 #        exit(0)
-#    overlap_set = {
-#       'background': (0, 0, 0),
-#       'axis': (92, 92, 92),
-#       'links': (128, 128, 128),
-#       'palette': [
-#           (0, 127, 192),
-#           (192, 127, 0)
-#       ]
-#    }
 #    my_map = Map(config.w, config.h, config.L, overlap_set, 'overlap.png')
 #    my_map.putAxis()
 #    for conf in guildes:
@@ -240,12 +292,25 @@ if __name__ == '__main__':
                         default=True, type=bool, help='Draw map of all players')
     parser.add_argument('--actives', action=argparse.BooleanOptionalAction,
                         default=True, type=bool, help='Draw map of activity')
+    parser.add_argument('--guilds', action=argparse.BooleanOptionalAction,
+                        default=False, type=bool, help='Draw maps of each guild')
+    parser.add_argument('--guild-name', type=str, help='Draw maps of the specified guild')
+    parser.add_argument('--player-guild', type=str, help='Draw maps of the guild of the specified player')
     parser.add_argument('filename', type=str, help='json file containing all players')
+
     args = parser.parse_args(sys.argv[1:])
-    drawAll = vars(args)['all']
-    drawActives = vars(args)['actives']
+    draw_all = vars(args)['all']
+    draw_actives = vars(args)['actives']
+    draw_guilds = vars(args)['guilds']
+    guild_name = vars(args)['guild_name']
+    player_guild = vars(args)['player_guild']
     fn = vars(args)['filename']
+
+    if not draw_all and not draw_actives and not draw_guilds and guild_name == None and player_guild == None:
+        print("Nothing to do")
+        print("Type '{} --help' to list options".format(sys.argv[0]))
+        exit(0)
     if os.path.exists(fn) and os.path.isfile(fn):
-        main(fn, drawAll, drawActives)
+        main(fn, draw_all, draw_actives, draw_guilds, guild_name, player_guild)
     else:
-        print("File '{}' does not exist.".format(sys.argv[1]))
+        print("File '{}' does not exist.".format(fn))
