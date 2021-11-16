@@ -8,6 +8,12 @@ import math
 from PIL import Image, ImageDraw, ImageFont
 import config
 
+UP = "\x1b[3A"
+CLR = "\x1b[0K"
+GOOD = "\033[38;5;34m"
+BAD = "\033[38;5;1m"
+RES = "\033[0m"
+
 def tiles(n):
     entier = math.floor(n/3)
     extra = 0
@@ -19,7 +25,7 @@ def getRadius(points):
     n = math.floor((points/48) ** (1/3))
     while (48 * tiles(n)) < points:
         n += 1
-    return (n - 1)
+    return max((n - 1), 0)
 
 # Game geometry: hexagons
 class GameGeom():
@@ -37,6 +43,11 @@ class GameGeom():
         hex_row = row - math.floor(col / 2)
         return (hex_row, hex_col)
 
+    def geomToGameCoord(row, col):
+        col = hex_col
+        row = hex_row + math.floor(hex_col / 2)
+        return (row, col)
+
     def __geomCoordToXYpx(self, hex_row, hex_col):
         hex_h = math.sin(math.pi / 3) * self.__edge_length
         ox = hex_col * 3/2 * self.__edge_length + self.__width/2
@@ -46,6 +57,9 @@ class GameGeom():
     def getCenterPx(self, city):
         (row, col) = self.gameToGeomCoord(row = city["y"], col = city["x"])
         return self.__geomCoordToXYpx(row, col)
+
+    def getCenterPxFromGeom(self, tile):
+        return self.__geomCoordToXYpx(tile["row"], tile["col"])
 
     def tile(self, row, col):
         (ox, oy) = self.__geomCoordToXYpx(row, col)
@@ -75,7 +89,9 @@ class GameGeom():
                 local_r = self.tileDist(row_1 = offset_y, col_1 = offset_x,
                                         row_2 = row,      col_2 = col)
                 if (local_r < radius):
-                    tile_set.append({ 'm_r': (radius - local_r), 'coords': self.tile(row, col) })
+                    tile_set.append({ 'm_r': (radius - local_r),
+                                      'row': row, 'col': col,
+                                      'coords': self.tile(row, col) })
         return tile_set
 
 class Map():
@@ -85,7 +101,7 @@ class Map():
         self.__edge_length = edge_length
         self.__geom = GameGeom(self.__width, self.__height, self.__edge_length)
         self.__color_set = color_set
-        self.__title = title
+        self.__title = title.replace('/', '-')
         self.__image = Image.new('RGB', (self.__width, self.__height),
                                  self.__color_set.background)
         self.__draw = ImageDraw.Draw(self.__image)
@@ -106,7 +122,7 @@ class Map():
     def save(self, prefix_path):
         if not os.path.isdir(prefix_path):
             try:
-                os.mkdir(prefix_path)
+                os.makedirs(prefix_path)
             except:
                 print('Unable to create directory', prefix_path)
                 exit(1)
@@ -115,7 +131,7 @@ class Map():
     def clear(self):
         self.__draw((0, 0, self.__width, self.__height), self.__color_set.background)
 
-    def addCity(self, player, draw_aura = True):
+    def addCity(self, player, draw_aura = True, draw_layers = False):
         if draw_aura == 'Low':
             radius = 1
         elif draw_aura == True:
@@ -128,9 +144,26 @@ class Map():
             m_r = tile['m_r'] - 1
             color_idx = player['color_idx']
             color = self.__color_set.palette[color_idx]
-            color = (color[0] + 10 * m_r,
-                     color[1] + 10 * m_r,
-                     color[2] + 10 * m_r)
+            if draw_layers:
+                if m_r % 2 == 0:
+                    color = (color[0] + 10 * m_r,
+                             color[1] + 10 * m_r,
+                             color[2] + 10 * m_r)
+                else:
+                    color = (color[0] + 5 * m_r,
+                             color[1] + 5 * m_r,
+                             color[2] + 5 * m_r)
+            else:
+                color = (color[0] + 10 * m_r,
+                         color[1] + 10 * m_r,
+                         color[2] + 10 * m_r)
+            old_color = self.__draw.im.getpixel(self.__geom.getCenterPxFromGeom(tile))
+            if old_color != self.__color_set.background and \
+               old_color != self.__color_set.axis and \
+               old_color != self.__color_set.links:
+                color = (int((color[0] + old_color[0]) / 2),
+                         int((color[1] + old_color[1]) / 2),
+                         int((color[2] + old_color[2]) / 2))
 
             if color != self.__color_set.background:
                 self.__draw.polygon(list(tile['coords']), color)
@@ -186,6 +219,7 @@ def createGuildMaps(guild):
     color_set = config.StellarSet()
 
     # 1) Draw the current fellowship with aura of each members and save it
+    print('[....] Draw all players from guild "{}" with aura'.format(guild['name']))
     guild_map = Map(config.w, config.h, config.L, color_set, guild['name'])
     guild_map.putAxis()
     for player in guild['members']:
@@ -193,10 +227,13 @@ def createGuildMaps(guild):
         player['color_idx'] = color_idx
         guild_map.addCity(player, draw_aura = True)
     guild_map.save(config.prefix_path + 'fellowship-aura/')
+    print(f"\n\n{UP}[ {GOOD}OK{RES} ]")
     del guild_map
 
     # 2) Draw the current fellowship without aura but add name of members
     #    and minimal spanning tree using prim algorithm
+    print(f"{CLR}", end='')
+    print('[....] Draw all players from guild "{}" with links'.format(guild['name']))
     guild_map = Map(config.w, config.h, config.L, color_set, guild['name'])
     guild_map.addLinks(guild['members'])
     for player in guild['members']:
@@ -205,19 +242,45 @@ def createGuildMaps(guild):
         guild_map.addCity(player, draw_aura = 'Low')
     guild_map.addNames(guild['members'])
     guild_map.save(config.prefix_path + 'fellowship-named/')
+    print(f"\n\n{UP}[ {GOOD}OK{RES} ]")
+
+def createOverlap(cities, guild_id):
+    guild = { 'name': '', 'members': [] }
+    for p in cities:
+        if 'guild_id' in p and p['guild_id'] == guild_id:
+            guild['name'] = p['guild_name']
+            guild['members'].append(p)
+
+    # 3) Draw overlap of the fellowship to see trading or recruitment opportunities
+    color_set = config.OverlapSet()
+    print('[....] Draw all players from guild "{}" with aura and active players'.format(guild['name']))
+    overlap_map = Map(config.w, config.h, config.L, color_set, '{}_overlap'.format(guild['name']))
+    overlap_map.putAxis()
+    for player in cities:
+        color_idx = color_set.getColorIdx(guild_id, player)
+        player['color_idx'] = color_idx
+        if 'guild_id' in player and player['guild_id'] == guild_id:
+            aura = True
+        else:
+            aura = False
+        if (35 - player['active_period']) < 10:
+            overlap_map.addCity(player, draw_aura = aura)
+    overlap_map.save(config.prefix_path)
+    print(f"\n\n{UP}[ {GOOD}OK{RES} ]")
 
 def main(fn = config.fn, draw_all = True, draw_actives = True, draw_guilds = False,
-         guild_name = None, player_guild = None):
+         guild_name = None, player_guild = None, overlap = False):
     fd = os.open(fn, os.O_RDONLY)
     sz = os.path.getsize(fn)
     buf = os.read(fd, sz)
     os.close(fd)
     data = json.loads(buf.decode())
     del buf
-    cities = [ data[k] for k in data ]
+    cities = [ data[k] for k in data if data[k]['ghost'] == False ]
     name = os.path.splitext(os.path.basename(fn))[0]
 
     if draw_all == True:
+        print('[....] Draw all players from {}'.format(name))
         color_set = config.StellarSet()
         stellar_map = Map(config.w, config.h, config.L, color_set, 'all-' + name)
         stellar_map.putAxis()
@@ -226,8 +289,10 @@ def main(fn = config.fn, draw_all = True, draw_actives = True, draw_guilds = Fal
             player['color_idx'] = color_idx
             stellar_map.addCity(player, draw_aura = False)
         stellar_map.save(config.prefix_path)
+        print(f"\n\n{UP}[ {GOOD}OK{RES} ]")
 
     if draw_actives == True:
+        print('[....] Draw active players from {}'.format(name))
         color_set = config.ForestSet()
         forest_map = Map(config.w, config.h, config.L, color_set, 'active-' + name)
         forest_map.putAxis()
@@ -236,6 +301,7 @@ def main(fn = config.fn, draw_all = True, draw_actives = True, draw_guilds = Fal
             player['color_idx'] = color_idx
             forest_map.addCity(player, draw_aura = False)
         forest_map.save(config.prefix_path)
+        print(f"\n\n{UP}[ {GOOD}OK{RES} ]")
 
     guilds = {}
     for p in cities:
@@ -245,9 +311,14 @@ def main(fn = config.fn, draw_all = True, draw_actives = True, draw_guilds = Fal
             guilds[p['guild_id']]['members'].append(p)
 
     if draw_guilds == True:
+        print('0/{}'.format(len(guilds)))
+        i = 0
         for guild_id in guilds:
+            i += 1
+            print(f"\n\n{UP}" + str(i) + '/' + str(len(guilds)) + f"{CLR}")
             guild = guilds[guild_id]
             createGuildMaps(guild)
+            print(f"\n{UP}{CLR}", end='')
 
     elif guild_name != None:
         guild = [ guilds[guild_id] for guild_id in guilds if guilds[guild_id]['name'] == guild_name ]
@@ -256,6 +327,8 @@ def main(fn = config.fn, draw_all = True, draw_actives = True, draw_guilds = Fal
                 print("Found {} guilds with the name '{}'!".format(len(guild), guild_name))
             guild = guild[0]
             createGuildMaps(guild)
+            if overlap == True:
+                createOverlap(cities, guild[0]['guild_id'])
         else:
             print("No guild named '{}' found.".format(guild_name))
 
@@ -267,24 +340,11 @@ def main(fn = config.fn, draw_all = True, draw_actives = True, draw_guilds = Fal
             guild_id = guild_id[0]
             guild = guilds[guild_id]
             createGuildMaps(guild)
+            if overlap == True:
+                createOverlap(cities, guild_id)
         else:
             print("Player '{}' is not in any guild.".format(player_guild))
 
-
-        # 3) Draw overlap of all fellowship to see trading opportunities
-
-#    if len(guildes) < 2:
-#        exit(0)
-#    my_map = Map(config.w, config.h, config.L, overlap_set, 'overlap.png')
-#    my_map.putAxis()
-#    for conf in guildes:
-#        if conf["name"] == guildes[0]["name"]:
-#            color_idx = 0
-#        else:
-#            color_idx = 1
-#        for player in conf["members"]:
-#            my_map.addCity(player, color_idx, draw_aura = True)
-#    my_map.save(config.prefix_path)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Draw maps of players from json database.')
@@ -295,7 +355,11 @@ if __name__ == '__main__':
     parser.add_argument('--guilds', action=argparse.BooleanOptionalAction,
                         default=False, type=bool, help='Draw maps of each guild')
     parser.add_argument('--guild-name', type=str, help='Draw maps of the specified guild')
-    parser.add_argument('--player-guild', type=str, help='Draw maps of the guild of the specified player')
+    parser.add_argument('--player-guild', type=str,
+                        help='Draw maps of the guild of the specified player')
+    parser.add_argument('--overlap', action=argparse.BooleanOptionalAction,
+                        default=False, type=bool,
+                        help='Draw map of the guild members with aura and all active players')
     parser.add_argument('filename', type=str, help='json file containing all players')
 
     args = parser.parse_args(sys.argv[1:])
@@ -304,13 +368,15 @@ if __name__ == '__main__':
     draw_guilds = vars(args)['guilds']
     guild_name = vars(args)['guild_name']
     player_guild = vars(args)['player_guild']
+    overlap = vars(args)['overlap']
     fn = vars(args)['filename']
 
-    if not draw_all and not draw_actives and not draw_guilds and guild_name == None and player_guild == None:
+    if not draw_all and not draw_actives and not draw_guilds \
+       and guild_name == None and player_guild == None:
         print("Nothing to do")
         print("Type '{} --help' to list options".format(sys.argv[0]))
         exit(0)
     if os.path.exists(fn) and os.path.isfile(fn):
-        main(fn, draw_all, draw_actives, draw_guilds, guild_name, player_guild)
+        main(fn, draw_all, draw_actives, draw_guilds, guild_name, player_guild, overlap)
     else:
         print("File '{}' does not exist.".format(fn))
