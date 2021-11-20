@@ -105,6 +105,7 @@ class Map():
         self.__image = Image.new('RGB', (self.__width, self.__height),
                                  self.__color_set.background)
         self.__draw = ImageDraw.Draw(self.__image)
+        self.__title_font = ImageFont.truetype('/usr/share/fonts/droid/DroidSans.ttf', 128)
         self.__font = ImageFont.truetype('/usr/share/fonts/droid/DroidSans.ttf', 64)
 
     def putAxis(self):
@@ -213,7 +214,33 @@ class Map():
             self.__draw.text((ox - txt_sz[0]/2, oy - 5 * self.__edge_length - txt_sz[1]),
                              city["name"], color, self.__font)
 
-    # TODO: Add legend
+    def addLegend(self):
+        i = 1
+        bg = self.__color_set.background
+        text_color = (255 - bg[0], 255 - bg[1], 255 - bg[2])
+        square_size = 65
+        margin_x = 15
+        margin_y = 10
+        offset_x = 5 + margin_x
+        offset_y = self.__height - (len(self.__color_set.legend) + i + 1) * \
+                                   (square_size + margin_y)
+        self.__draw.text((offset_x - margin_x, offset_y - margin_y),
+                         self.__color_set.legend_title,
+                         text_color, self.__font)
+        for color in self.__color_set.legend:
+            self.__draw.rectangle((offset_x,
+                                   offset_y + (square_size + margin_y) * i,
+                                   square_size + offset_x,
+                                   offset_y + square_size + (square_size + margin_y) * i),
+                                  color, self.__color_set.background)
+            self.__draw.text((square_size + offset_x + margin_x,
+                              offset_y + (square_size + margin_y) * i),
+                             self.__color_set.legend[color], color, self.__font)
+            i += 1
+        title_sz = self.__draw.textsize(self.__title, self.__title_font)
+        self.__draw.text(((self.__width - title_sz[0])/2, offset_x), self.__title,
+                         text_color, self.__title_font)
+        return
 
 def createGuildMaps(guild):
     color_set = config.StellarSet()
@@ -226,6 +253,7 @@ def createGuildMaps(guild):
         color_idx = color_set.getColorIdx(getRadius(player['encounter']))
         player['color_idx'] = color_idx
         guild_map.addCity(player, draw_aura = True)
+    guild_map.addLegend()
     guild_map.save(config.prefix_path + 'fellowship-aura/')
     print(f"\n\n{UP}[ {GOOD}OK{RES} ]")
     del guild_map
@@ -241,6 +269,7 @@ def createGuildMaps(guild):
         player['color_idx'] = color_idx
         guild_map.addCity(player, draw_aura = 'Low')
     guild_map.addNames(guild['members'])
+    guild_map.addLegend()
     guild_map.save(config.prefix_path + 'fellowship-named/')
     print(f"\n\n{UP}[ {GOOD}OK{RES} ]")
 
@@ -265,6 +294,7 @@ def createOverlap(cities, guild_id):
             aura = False
         if (35 - player['active_period']) < 10:
             overlap_map.addCity(player, draw_aura = aura)
+    overlap_map.addLegend()
     overlap_map.save(config.prefix_path)
     print(f"\n\n{UP}[ {GOOD}OK{RES} ]")
 
@@ -288,6 +318,7 @@ def main(fn = config.fn, draw_all = True, draw_actives = True, draw_guilds = Fal
             color_idx = color_set.getColorIdx(getRadius(player['encounter']))
             player['color_idx'] = color_idx
             stellar_map.addCity(player, draw_aura = False)
+        stellar_map.addLegend()
         stellar_map.save(config.prefix_path)
         print(f"\n\n{UP}[ {GOOD}OK{RES} ]")
 
@@ -300,6 +331,7 @@ def main(fn = config.fn, draw_all = True, draw_actives = True, draw_guilds = Fal
             color_idx = color_set.getColorIdx(player['active_period'])
             player['color_idx'] = color_idx
             forest_map.addCity(player, draw_aura = False)
+        forest_map.addLegend()
         forest_map.save(config.prefix_path)
         print(f"\n\n{UP}[ {GOOD}OK{RES} ]")
 
