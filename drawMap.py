@@ -120,14 +120,14 @@ class Map():
                           self.__height - self.__edge_length),
                          self.__color_set.axis, int(self.__edge_length/2))
 
-    def save(self, prefix_path):
-        if not os.path.isdir(prefix_path):
+    def save(self, path):
+        if not os.path.isdir(path):
             try:
-                os.makedirs(prefix_path)
+                os.makedirs(path)
             except:
-                print('Unable to create directory', prefix_path)
+                print('Unable to create directory', path)
                 exit(1)
-        self.__image.save('{}{}.png'.format(prefix_path, self.__title))
+        self.__image.save('{}{}.png'.format(path, self.__title))
 
     def clear(self):
         self.__draw((0, 0, self.__width, self.__height), self.__color_set.background)
@@ -242,7 +242,7 @@ class Map():
                          text_color, self.__title_font)
         return
 
-def createGuildMaps(guild):
+def createGuildMaps(guild, prefix_path):
     color_set = config.StellarSet()
 
     # 1) Draw the current fellowship with aura of each members and save it
@@ -254,7 +254,7 @@ def createGuildMaps(guild):
         player['color_idx'] = color_idx
         guild_map.addCity(player, draw_aura = True)
     guild_map.addLegend()
-    guild_map.save(config.prefix_path + 'fellowship-aura/')
+    guild_map.save(prefix_path + 'fellowship-aura/')
     print(f"\n\n{UP}[ {GOOD}OK{RES} ]")
     del guild_map
 
@@ -270,10 +270,10 @@ def createGuildMaps(guild):
         guild_map.addCity(player, draw_aura = 'Low')
     guild_map.addNames(guild['members'])
     guild_map.addLegend()
-    guild_map.save(config.prefix_path + 'fellowship-named/')
+    guild_map.save(prefix_path + 'fellowship-named/')
     print(f"\n\n{UP}[ {GOOD}OK{RES} ]")
 
-def createOverlap(cities, guild_id):
+def createOverlap(cities, guild_id, prefix_path):
     guild = { 'name': '', 'members': [] }
     for p in cities:
         if 'guild_id' in p and p['guild_id'] == guild_id:
@@ -282,6 +282,7 @@ def createOverlap(cities, guild_id):
 
     # 3) Draw overlap of the fellowship to see trading or recruitment opportunities
     color_set = config.OverlapSet()
+    print(f"{CLR}", end='')
     print('[....] Draw all players from guild "{}" with aura and active players'.format(guild['name']))
     overlap_map = Map(config.w, config.h, config.L, color_set, '{}_overlap'.format(guild['name']))
     overlap_map.putAxis()
@@ -289,17 +290,16 @@ def createOverlap(cities, guild_id):
         color_idx = color_set.getColorIdx(guild_id, player)
         player['color_idx'] = color_idx
         if 'guild_id' in player and player['guild_id'] == guild_id:
-            aura = True
-        else:
-            aura = False
-        if (35 - player['active_period']) < 10:
-            overlap_map.addCity(player, draw_aura = aura)
+            overlap_map.addCity(player, draw_aura = True)
+        elif (35 - player['active_period']) < 10:
+            overlap_map.addCity(player, draw_aura = False)
     overlap_map.addLegend()
-    overlap_map.save(config.prefix_path)
+    overlap_map.save(prefix_path + 'fellowship-overlap/')
     print(f"\n\n{UP}[ {GOOD}OK{RES} ]")
 
 def main(fn = config.fn, draw_all = True, draw_actives = True, draw_guilds = False,
-         guild_name = None, player_guild = None, overlap = False):
+         guild_name = None, player_guild = None, overlap = False,
+         prefix_path = config.prefix_path):
     fd = os.open(fn, os.O_RDONLY)
     sz = os.path.getsize(fn)
     buf = os.read(fd, sz)
@@ -319,7 +319,7 @@ def main(fn = config.fn, draw_all = True, draw_actives = True, draw_guilds = Fal
             player['color_idx'] = color_idx
             stellar_map.addCity(player, draw_aura = False)
         stellar_map.addLegend()
-        stellar_map.save(config.prefix_path)
+        stellar_map.save(prefix_path + 'all-players/')
         print(f"\n\n{UP}[ {GOOD}OK{RES} ]")
 
     if draw_actives == True:
@@ -332,7 +332,7 @@ def main(fn = config.fn, draw_all = True, draw_actives = True, draw_guilds = Fal
             player['color_idx'] = color_idx
             forest_map.addCity(player, draw_aura = False)
         forest_map.addLegend()
-        forest_map.save(config.prefix_path)
+        forest_map.save(prefix_path + 'active-players/')
         print(f"\n\n{UP}[ {GOOD}OK{RES} ]")
 
     guilds = {}
@@ -349,7 +349,10 @@ def main(fn = config.fn, draw_all = True, draw_actives = True, draw_guilds = Fal
             i += 1
             print(f"\n\n{UP}" + str(i) + '/' + str(len(guilds)) + f"{CLR}")
             guild = guilds[guild_id]
-            createGuildMaps(guild)
+            createGuildMaps(guild, prefix_path)
+            if overlap == True:
+                createOverlap(cities, guild_id, prefix_path)
+                print(f"\n\n{UP}", end='')
             print(f"\n{UP}{CLR}", end='')
 
     elif guild_name != None:
@@ -358,9 +361,9 @@ def main(fn = config.fn, draw_all = True, draw_actives = True, draw_guilds = Fal
             if len(guild) > 1:
                 print("Found {} guilds with the name '{}'!".format(len(guild), guild_name))
             guild = guild[0]
-            createGuildMaps(guild)
+            createGuildMaps(guild, prefix_path)
             if overlap == True:
-                createOverlap(cities, guild[0]['guild_id'])
+                createOverlap(cities, guild[0]['guild_id'], prefix_path)
         else:
             print("No guild named '{}' found.".format(guild_name))
 
@@ -371,9 +374,9 @@ def main(fn = config.fn, draw_all = True, draw_actives = True, draw_guilds = Fal
                 print("Player '{}' is in more than one guild!".format(player_guild))
             guild_id = guild_id[0]
             guild = guilds[guild_id]
-            createGuildMaps(guild)
+            createGuildMaps(guild, prefix_path)
             if overlap == True:
-                createOverlap(cities, guild_id)
+                createOverlap(cities, guild_id, prefix_path)
         else:
             print("Player '{}' is not in any guild.".format(player_guild))
 
@@ -393,6 +396,8 @@ if __name__ == '__main__':
                         default=False, type=bool,
                         help='Draw map of the guild members with aura and all active players')
     parser.add_argument('filename', type=str, help='json file containing all players')
+    parser.add_argument('--path', type=str, default=config.prefix_path,
+                        help='Output path to put generated images')
 
     args = parser.parse_args(sys.argv[1:])
     draw_all = vars(args)['all']
@@ -402,6 +407,7 @@ if __name__ == '__main__':
     player_guild = vars(args)['player_guild']
     overlap = vars(args)['overlap']
     fn = vars(args)['filename']
+    prefix_path = vars(args)['path']
 
     if not draw_all and not draw_actives and not draw_guilds \
        and guild_name == None and player_guild == None:
@@ -409,6 +415,7 @@ if __name__ == '__main__':
         print("Type '{} --help' to list options".format(sys.argv[0]))
         exit(0)
     if os.path.exists(fn) and os.path.isfile(fn):
-        main(fn, draw_all, draw_actives, draw_guilds, guild_name, player_guild, overlap)
+        main(fn, draw_all, draw_actives, draw_guilds, guild_name, player_guild,
+             overlap, prefix_path)
     else:
         print("File '{}' does not exist.".format(fn))

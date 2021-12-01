@@ -66,7 +66,7 @@ class OverlapSet(ColorSet):
     def __init__(self):
         self.__legend_title = 'Active players in the past 10 days'
         self.__legend = {
-            (0x0b, 0x50, 0xaf): 'fellow members',
+            (0x0b, 0x50, 0xaf): 'fellow members (all)',
             (0xff, 0x45, 0x00): 'foreign guild members',
             (0xef, 0xe4, 0x9a): 'players without guild'
         }
