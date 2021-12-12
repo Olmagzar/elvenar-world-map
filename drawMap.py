@@ -254,7 +254,7 @@ def createGuildMaps(guild, prefix_path):
         player['color_idx'] = color_idx
         guild_map.addCity(player, draw_aura = True)
     guild_map.addLegend()
-    guild_map.save(prefix_path + 'fellowship-aura/')
+    guild_map.save('{}/{}'.format(prefix_path, 'fellowship-aura/'))
     print(f"\n\n{UP}[ {GOOD}OK{RES} ]")
     del guild_map
 
@@ -270,7 +270,7 @@ def createGuildMaps(guild, prefix_path):
         guild_map.addCity(player, draw_aura = 'Low')
     guild_map.addNames(guild['members'])
     guild_map.addLegend()
-    guild_map.save(prefix_path + 'fellowship-named/')
+    guild_map.save('{}/{}'.format(prefix_path, 'fellowship-named/'))
     print(f"\n\n{UP}[ {GOOD}OK{RES} ]")
 
 def createOverlap(cities, guild_id, prefix_path):
@@ -294,7 +294,7 @@ def createOverlap(cities, guild_id, prefix_path):
         elif (35 - player['active_period']) < 10:
             overlap_map.addCity(player, draw_aura = False)
     overlap_map.addLegend()
-    overlap_map.save(prefix_path + 'fellowship-overlap/')
+    overlap_map.save('{}/{}'.format(prefix_path, 'fellowship-overlap/'))
     print(f"\n\n{UP}[ {GOOD}OK{RES} ]")
 
 def main(fn = config.fn, draw_all = True, draw_actives = True, draw_guilds = False,
@@ -319,7 +319,7 @@ def main(fn = config.fn, draw_all = True, draw_actives = True, draw_guilds = Fal
             player['color_idx'] = color_idx
             stellar_map.addCity(player, draw_aura = False)
         stellar_map.addLegend()
-        stellar_map.save(prefix_path + 'all-players/')
+        stellar_map.save('{}/{}'.format(prefix_path, 'all-players/'))
         print(f"\n\n{UP}[ {GOOD}OK{RES} ]")
 
     if draw_actives == True:
@@ -332,7 +332,7 @@ def main(fn = config.fn, draw_all = True, draw_actives = True, draw_guilds = Fal
             player['color_idx'] = color_idx
             forest_map.addCity(player, draw_aura = False)
         forest_map.addLegend()
-        forest_map.save(prefix_path + 'active-players/')
+        forest_map.save('{}/{}'.format(prefix_path, 'active-players/'))
         print(f"\n\n{UP}[ {GOOD}OK{RES} ]")
 
     guilds = {}

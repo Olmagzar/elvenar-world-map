@@ -5,7 +5,7 @@ h = 5500
 w = 5500
 L = 7
 
-prefix_path = './maps/'
+prefix_path = './maps'
 
 class ColorSet():
     def __init__(self, palette):
