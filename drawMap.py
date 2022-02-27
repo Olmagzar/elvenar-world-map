@@ -105,8 +105,9 @@ class Map():
         self.__image = Image.new('RGB', (self.__width, self.__height),
                                  self.__color_set.background)
         self.__draw = ImageDraw.Draw(self.__image)
-        self.__title_font = ImageFont.truetype('/usr/share/fonts/droid/DroidSans.ttf', 128)
-        self.__font = ImageFont.truetype('/usr/share/fonts/droid/DroidSans.ttf', 64)
+        self.__root = os.path.dirname('{}/{}'.format(os.getcwd(), os.sys.argv[0]))
+        self.__title_font = ImageFont.truetype('{}/PetraSans-Regular.ttf'.format(self.__root), 128)
+        self.__font = ImageFont.truetype('{}/PetraSans-Regular.ttf'.format(self.__root), 64)
 
     def putAxis(self):
         self.__draw.line((self.__edge_length,
