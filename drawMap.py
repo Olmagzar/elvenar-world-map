@@ -211,8 +211,8 @@ class Map():
             color_idx = city['color_idx']
             color = self.__color_set.palette[color_idx]
             (ox, oy) = self.__geom.getCenterPx(city)
-            txt_sz = self.__draw.textsize(city['name'], self.__font)
-            self.__draw.text((ox - txt_sz[0]/2, oy - 5 * self.__edge_length - txt_sz[1]),
+            txt_sz = self.__draw.textbbox((0,0), city['name'], self.__font)
+            self.__draw.text((ox - txt_sz[2]/2, oy - 5 * self.__edge_length - txt_sz[3]),
                              city["name"], color, self.__font)
 
     def addLegend(self):
@@ -238,8 +238,8 @@ class Map():
                               offset_y + (square_size + margin_y) * i),
                              self.__color_set.legend[color], color, self.__font)
             i += 1
-        title_sz = self.__draw.textsize(self.__title, self.__title_font)
-        self.__draw.text(((self.__width - title_sz[0])/2, offset_x), self.__title,
+        title_sz = round(self.__draw.textlength(self.__title, self.__title_font))
+        self.__draw.text(((self.__width - title_sz)/2, offset_x), self.__title,
                          text_color, self.__title_font)
         return
 
